@@ -1,138 +1,183 @@
-import fs from 'fs';
-import path from 'path';
-import matter from 'gray-matter';
+import fs from "fs";
+import path from "path";
+import matter from "gray-matter";
 
 interface Changelog {
   slug: string;
   frontmatter: {
     [key: string]: any;
   };
-  content: string; // This will be raw markdown
+  content: string;
 }
 
-// Simple markdown to React components parser
 function parseMarkdown(content: string): React.ReactNode {
-  const lines = content.split('\n');
+  const lines = content.split("\n");
   const elements: React.ReactNode[] = [];
-  
+
   let currentList: string[] = [];
   let inList = false;
 
   lines.forEach((line, index) => {
     const trimmedLine = line.trim();
-    
-    if (trimmedLine.startsWith('# ')) {
-      // Main heading - skip as we already have the title
-      return;
-    } else if (trimmedLine.startsWith('## ')) {
-      // Subheading
+
+    if (trimmedLine.startsWith("## ")) {
       if (inList) {
-        elements.push(<ul key={`list-${index}`} className="list-disc pl-6 mb-4">{currentList.map((item, i) => <li key={i} className="mb-1">{item}</li>)}</ul>);
+        elements.push(
+          <ul
+            key={`list-${index}`}
+            className="list-disc pl-6 mb-4 space-y-2 text-[var(--foreground)]"
+          >
+            {currentList.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        );
         currentList = [];
         inList = false;
       }
-      elements.push(<h3 key={index} className="text-xl font-semibold mt-6 mb-3 text-gray-800">{trimmedLine.substring(3)}</h3>);
-    } else if (trimmedLine.startsWith('### ')) {
-      // Sub-subheading
-      if (inList) {
-        elements.push(<ul key={`list-${index}`} className="list-disc pl-6 mb-4">{currentList.map((item, i) => <li key={i} className="mb-1">{item}</li>)}</ul>);
-        currentList = [];
-        inList = false;
-      }
-      elements.push(<h4 key={index} className="text-lg font-medium mt-4 mb-2 text-gray-700">{trimmedLine.substring(4)}</h4>);
-    } else if (trimmedLine.startsWith('- ')) {
-      // List item
+      elements.push(
+        <h2
+          key={index}
+          className="text-xl font-semibold text-[var(--brand-green)] mt-6 mb-4 tracking-tight uppercase"
+        >
+          {trimmedLine.substring(3)}
+        </h2>
+      );
+    } else if (trimmedLine.startsWith("- ")) {
       if (!inList) {
         inList = true;
       }
       currentList.push(trimmedLine.substring(2));
-    } else if (trimmedLine === '') {
-      // Empty line - end current list if any
+    } else if (trimmedLine === "") {
       if (inList) {
-        elements.push(<ul key={`list-${index}`} className="list-disc pl-6 mb-4">{currentList.map((item, i) => <li key={i} className="mb-1">{item}</li>)}</ul>);
+        elements.push(
+          <ul
+            key={`list-${index}`}
+            className="list-disc pl-6 mb-4 space-y-2 text-[var(--foreground)]"
+          >
+            {currentList.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        );
         currentList = [];
         inList = false;
       }
     } else if (trimmedLine) {
-      // Regular paragraph
       if (inList) {
-        elements.push(<ul key={`list-${index}`} className="list-disc pl-6 mb-4">{currentList.map((item, i) => <li key={i} className="mb-1">{item}</li>)}</ul>);
+        elements.push(
+          <ul
+            key={`list-${index}`}
+            className="list-disc pl-6 mb-4 space-y-2 text-[var(--foreground)]"
+          >
+            {currentList.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        );
         currentList = [];
         inList = false;
       }
-      elements.push(<p key={index} className="mb-3 text-gray-600">{trimmedLine}</p>);
+      elements.push(
+        <p key={index} className="text-[var(--foreground)] mb-4">
+          {trimmedLine}
+        </p>
+      );
     }
   });
 
-  // Handle any remaining list
   if (inList) {
-    elements.push(<ul key="final-list" className="list-disc pl-6 mb-4">{currentList.map((item, i) => <li key={i} className="mb-1">{item}</li>)}</ul>);
+    elements.push(
+      <ul
+        key="last-list"
+        className="list-disc pl-6 mb-4 space-y-2 text-[var(--foreground)]"
+      >
+        {currentList.map((item, i) => (
+          <li key={i}>{item}</li>
+        ))}
+      </ul>
+    );
   }
 
   return elements;
 }
 
-const getChangelogs = async (): Promise<Changelog[]> => {
-  const changelogsDirectory = path.join(process.cwd(), 'changelogs');
-  const fileNames = fs.readdirSync(changelogsDirectory);
+const getChangelogs = (): Changelog[] => {
+  const changelogsDirectory = path.join(process.cwd(), "changelogs");
+  if (!fs.existsSync(changelogsDirectory)) return [];
 
-  const changelogs = fileNames.map((fileName) => {
-    const slug = fileName.replace(/\.md$/, '');
-    const filePath = path.join(changelogsDirectory, fileName);
-    const fileContents = fs.readFileSync(filePath, 'utf8');
-    const { data, content } = matter(fileContents);
+  return fs
+    .readdirSync(changelogsDirectory)
+    .map((fileName) => {
+      const slug = fileName.replace(/\.md$/, "");
+      const filePath = path.join(changelogsDirectory, fileName);
+      const fileContents = fs.readFileSync(filePath, "utf8");
+      const { data, content } = matter(fileContents);
 
-    return {
-      slug,
-      frontmatter: data,
-      content, // Keep as raw markdown
-    };
-  });
-
-  return changelogs.sort((a, b) => {
-    if (a.frontmatter.date < b.frontmatter.date) {
-      return 1;
-    } else {
-      return -1;
-    }
-  });
+      return {
+        slug,
+        frontmatter: data,
+        content,
+      };
+    })
+    .sort((a, b) =>
+      a.frontmatter.date < b.frontmatter.date ? 1 : -1
+    );
 };
 
-export default async function Home() {
-  const changelogs = await getChangelogs();
+export default function Home() {
+  const changelogs = getChangelogs();
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <header className="bg-white border-b border-gray-200">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <h1 className="text-3xl font-bold text-gray-900">Changelog</h1>
-          </div>
-        </div>
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-24">
+      <header className="text-center mb-16">
+        <h1 className="text-5xl font-extrabold tracking-tight mb-2 text-[var(--brand-green)]">
+          Product Updates
+        </h1>
+        <p className="text-lg mt-2 max-w-2xl mx-auto text-[var(--foreground)]">
+          A timeline of the latest features, improvements, and fixes.
+        </p>
       </header>
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-12">
-          {changelogs.map((changelog) => (
-            <article key={changelog.slug} className="bg-white p-8 rounded-lg shadow-md">
-              <div className="flex items-center space-x-4 mb-4">
-                <div className="flex-shrink-0">
-                  <span className="text-lg font-semibold text-gray-900">
-                    {new Date(changelog.frontmatter.date + 'T00:00:00').toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </span>
-                </div>
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">{changelog.frontmatter.title}</h2>
-              <div className="prose prose-lg max-w-none text-gray-900">
-                {parseMarkdown(changelog.content)}
-              </div>
-            </article>
-          ))}
-        </div>
-      </main>
+
+      <div className="space-y-12 text-[color:var(--foreground)]">
+        {changelogs.map((changelog) => (
+          <article
+            key={changelog.slug}
+            className="bg-[var(--card-background)] p-8 sm:p-10 border border-[var(--card-border)]"
+          >
+            <div className="border-b border-[var(--card-border)] pb-4 mb-6">
+              <h2 className="text-2xl font-bold tracking-tight mb-1 text-[var(--brand-green)]">
+                {changelog.frontmatter.title}
+              </h2>
+              <time
+                dateTime={changelog.frontmatter.date}
+                className="text-[color:var(--foreground)]/80 mt-1 block"
+              >
+                {new Date(
+                  changelog.frontmatter.date + "T00:00:00"
+                ).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </time>
+            </div>
+            <div className="prose prose-lg max-w-none prose-h2:text-xl prose-h2:font-semibold prose-h2:text-[var(--brand-green)] prose-ul:text-[var(--foreground)]">
+              {parseMarkdown(changelog.content)}
+            </div>
+          </article>
+        ))}
+        {changelogs.length === 0 && (
+          <div className="text-center py-16 bg-[var(--card-background)] rounded-xl shadow-md border border-[var(--card-border)]">
+            <h2 className="text-3xl font-bold text-[var(--brand-green)]">
+              No changelogs yet!
+            </h2>
+            <p className="text-lg mt-4 ]">
+              Run the generator to see your first product update here.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

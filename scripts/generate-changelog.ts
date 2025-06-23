@@ -110,7 +110,7 @@ function categorizeCommits(commits: string[]): Record<string, string[]> {
 
 async function generateChangelogFromCommits(categorizedCommits: Record<string, string[]>): Promise<string> {
   const summarizer = await SummarizationManager.getInstance();
-  let changelog = '# Changelog\n\n';
+  let changelog = '';
 
   for (const category in categorizedCommits) {
     const commits = categorizedCommits[category];
