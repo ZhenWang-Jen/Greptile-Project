@@ -153,13 +153,13 @@ export default function Home() {
                 dateTime={changelog.frontmatter.date}
                 className="text-[color:var(--foreground)]/80 mt-1 block"
               >
-                {new Date(
-                  changelog.frontmatter.date + "T00:00:00"
-                ).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
+                {changelog.frontmatter.date
+                  ? new Date(changelog.frontmatter.date).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })
+                  : "Date unavailable"}
               </time>
             </div>
             <div className="prose prose-lg max-w-none prose-h2:text-xl prose-h2:font-semibold prose-h2:text-[var(--brand-green)] prose-ul:text-[var(--foreground)]">
