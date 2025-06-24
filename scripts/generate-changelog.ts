@@ -9,12 +9,23 @@ const CHANGELOG_DIR = path.join(process.cwd(), "changelogs");
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 function getAllCommitsGroupedByDate(): Record<string, string[]> {
-  const raw = execSync(
-    `git log --pretty=format:"%cd|%s" --date=short`,
-    { encoding: "utf8" }
-  );
+  let raw: string;
+  try {
+    raw = execSync(
+      `git log --pretty=format:"%cd|%s" --date=short`,
+      { encoding: "utf8" }
+    );
+  } catch (err: any) {
+    if (err.message.includes('not a git repository')) {
+      throw new Error("This directory is not a git repository. Please run this script inside a git project.");
+    }
+    throw new Error("Failed to run 'git log'. Make sure git is installed and this is a git repository.");
+  }
 
   const lines = raw.trim().split("\n").filter(Boolean);
+  if (lines.length === 0) {
+    throw new Error("No commits found in this repository. Make some commits before generating a changelog.");
+  }
   const grouped: Record<string, string[]> = {};
 
   for (const line of lines) {
@@ -31,6 +42,9 @@ function fixMarkdown(md: string): string {
 }
 
 async function summarizeCommits(commits: string[], date: string): Promise<string> {
+  if (!OPENROUTER_API_KEY) {
+    throw new Error("OPENROUTER_API_KEY is missing. Please add it to your .env.local file.");
+  }
   const prompt = `
     You are a technical writer generating a public-facing changelog entry for an AI-powered developer tool.
 
@@ -70,6 +84,10 @@ async function summarizeCommits(commits: string[], date: string): Promise<string
     }),
   });
 
+  if (!response.ok) {
+    throw new Error(`Failed to fetch from OpenRouter API: ${response.status} ${response.statusText}`);
+  }
+
   const json = await response.json();
   const content = json.choices?.[0]?.message?.content;
   if (!content) throw new Error(`No changelog generated for ${date}`);
@@ -89,17 +107,26 @@ function writeChangelog(content: string, date: string) {
 (async function run() {
   try {
     const grouped = getAllCommitsGroupedByDate();
+    let wroteAny = false;
     for (const date of Object.keys(grouped)) {
       const filePath = path.join(CHANGELOG_DIR, `${date}.md`);
       if (fs.existsSync(filePath)) {
         console.log(`⏩ Skipping ${date}, changelog already exists.`);
         continue;
       }
-
-      const summary = await summarizeCommits(grouped[date], date);
-      writeChangelog(summary, date);
+      try {
+        const summary = await summarizeCommits(grouped[date], date);
+        writeChangelog(summary, date);
+        wroteAny = true;
+      } catch (err: any) {
+        console.error(`❌ Error generating changelog for ${date}:`, err.message);
+      }
+    }
+    if (!wroteAny) {
+      console.log("No new changelogs were generated.");
     }
   } catch (err: any) {
     console.error("❌ Error:", err.message);
+    process.exit(1);
   }
 })();
