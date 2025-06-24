@@ -149,18 +149,6 @@ export default function Home() {
               <h2 className="text-2xl font-bold tracking-tight mb-1 text-[var(--brand-green)]">
                 {changelog.frontmatter.title}
               </h2>
-              <time
-                dateTime={changelog.frontmatter.date}
-                className="text-[color:var(--foreground)]/80 mt-1 block"
-              >
-                {changelog.frontmatter.date
-                  ? new Date(changelog.frontmatter.date).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })
-                  : "Date unavailable"}
-              </time>
             </div>
             <div className="prose prose-lg max-w-none prose-h2:text-xl prose-h2:font-semibold prose-h2:text-[var(--brand-green)] prose-ul:text-[var(--foreground)]">
               {parseMarkdown(changelog.content)}
