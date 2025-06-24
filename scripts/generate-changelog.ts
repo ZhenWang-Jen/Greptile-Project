@@ -62,7 +62,7 @@ async function summarizeCommits(commits: string[], date: string): Promise<string
 
     ## ${date}
 
-    ### [Title here]  
+    ### Title here
     **Tags:** AI, Design
 
     [One-paragraph summary describing the user-facing value of this change]
