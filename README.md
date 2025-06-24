@@ -43,29 +43,36 @@ To generate a new changelog from your recent git commits:
     ```bash
     npm run changelog:generate
     ```
-    *Note: The first time you run this command, it will download the local AI model (a few hundred megabytes). Subsequent runs will be much faster.*
 
 This will create a new markdown file in the `changelogs` directory with the AI-generated content. The new changelog will automatically appear on the website.
 
-## Technical Decisions
+## Technical & Product Decisions: What and Why
 
-### Framework and Language
+### Next.js & React
+Chosen for hybrid static/server rendering, fast load times, SEO, and wide community support.
 
--   **Next.js & React**: Chosen for its hybrid static & server rendering capabilities, perfect for a fast public changelog and a server-side generation script.
--   **TypeScript**: Used to ensure type safety, making the code more robust and easier to maintain.
--   **Tailwind CSS**: For rapid UI development with a utility-first approach. The `@tailwindcss/typography` plugin styles the rendered markdown beautifully.
+### TypeScript
+Ensures type safety and maintainability, especially as the codebase grows.
 
-### Changelog Generation
+### Tailwind CSS
+Enables rapid, consistent UI development; the typography plugin makes markdown look polished.
 
--   **`@xenova/transformers`**: This is the core of the AI. It runs a powerful summarization model directly on your machine, removing the need for API keys and enabling offline use.
--   **Node.js `child_process`**: To get the git history, we call the `git` command directly using this built-in Node.js module. This avoids adding an extra dependency for a simple task.
--   **Commit Categorization**: The script uses a keyword-based approach to categorize commits into logical groups like Features and Fixes before summarizing them.
+### Local AI with `@xenova/transformers`
+Runs AI models locally for privacy, offline use, and no API costs.
 
-### Content Management & Rendering
+### Node.js `child_process` for Git
+Directly calls `git` for reliability and minimal dependencies.
 
--   **Markdown Files**: Changelogs are stored as simple markdown files, which is simple and version-control-friendly.
--   **`gray-matter`**: A tiny, essential library to parse the metadata (title, date) from the top of the markdown files for sorting and display.
--   **`marked` & `dompurify`**: To display the changelogs, `marked` first converts the markdown content to HTML on the server. Then, `dompurify` sanitizes this HTML to prevent security vulnerabilities (XSS) before it's sent to the user's browser. This server-side approach ensures a fast and secure experience.
+### Keyword-Based Commit Categorization
+Simple, transparent, and robust without needing custom models.
+
+### Markdown for Changelogs
+Human-readable, version-control-friendly, and integrates with static site generators.
+
+### `gray-matter`, `marked`, `dompurify`
+Lightweight, focused libraries for metadata parsing, markdown rendering, and HTML sanitization.
+
+This setup creates a seamless experience for both the developer generating the changelog and the end-user viewing it.
 
 ## How it Works
 
@@ -77,3 +84,16 @@ This will create a new markdown file in the `changelogs` directory with the AI-g
 6.  This pre-rendered HTML is sent to the user's browser, displaying a fast and beautifully formatted changelog.
 
 This setup creates a seamless experience for both the developer generating the changelog and the end-user viewing it. 
+
+## Why These Technical and Product Decisions?
+
+### Next.js & React
+- **Why:** Next.js offers both static and server-side rendering, which means the public changelog site loads quickly and is SEO-friendly, while also allowing dynamic features if needed. React is widely adopted, making the project accessible to contributors.
+
+### TypeScript
+- **Why:** TypeScript helps catch bugs early and makes the codebase easier to maintain as it grows, especially with multiple contributors.
+
+### Tailwind CSS
+- **Why:** Tailwind enables rapid prototyping and consistent styling without writing custom CSS for every component. The `@tailwindcss/typography` plugin styles the rendered markdown beautifully.
+
+### Local AI with `@xenova/transformers`
