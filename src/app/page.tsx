@@ -6,7 +6,9 @@ import React from "react";
 interface Changelog {
   slug: string;
   frontmatter: {
-    [key: string]: any;
+    title?: string;
+    date?: string;
+    [key: string]: unknown;
   };
   content: string;
 }
