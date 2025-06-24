@@ -89,7 +89,7 @@ export default function Home() {
   const changelogs = getChangelogs();
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-24">
+    <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-24" aria-label="Changelog main content">
       <header className="text-center mb-16">
         <h1 className="text-5xl font-extrabold tracking-tight mb-2 text-[var(--brand-green)]">
           Product Updates
@@ -99,14 +99,18 @@ export default function Home() {
         </p>
       </header>
 
-      <div className="space-y-12 text-[color:var(--foreground)]">
+      <section className="space-y-12 text-[color:var(--foreground)]" aria-label="Changelog entries">
         {changelogs.map((changelog) => (
           <article
             key={changelog.slug}
             className="bg-[var(--card-background)] p-8 sm:p-10 border border-[var(--card-border)]"
+            aria-labelledby={`changelog-title-${changelog.slug}`}
           >
             <div className="border-b border-[var(--card-border)] pb-4 mb-6">
-              <h2 className="text-2xl font-bold tracking-tight mb-1 text-[var(--brand-green)]">
+              <h2
+                id={`changelog-title-${changelog.slug}`}
+                className="text-2xl font-bold tracking-tight mb-1 text-[var(--brand-green)]"
+              >
                 {changelog.frontmatter.title}
               </h2>
             </div>
@@ -117,16 +121,16 @@ export default function Home() {
         ))}
 
         {changelogs.length === 0 && (
-          <div className="text-center py-16 bg-[var(--card-background)] rounded-xl shadow-md border border-[var(--card-border)]">
+          <section className="text-center py-16 bg-[var(--card-background)] rounded-xl shadow-md border border-[var(--card-border)]" aria-label="No changelogs">
             <h2 className="text-3xl font-bold text-[var(--brand-green)]">
               No changelogs yet!
             </h2>
             <p className="text-lg mt-4 text-[var(--foreground)]">
               Run the generator to see your first product update here.
             </p>
-          </div>
+          </section>
         )}
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
