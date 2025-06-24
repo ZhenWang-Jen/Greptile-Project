@@ -7,6 +7,12 @@ This project is an AI-powered changelog generator. It consists of two parts:
 
 This tool is designed to streamline the process of creating and publishing changelogs, making it easier for developers to keep their users informed about new features, bug fixes, and improvements—all without needing an internet connection or external API keys.
 
+
+## Demo
+
+https://github.com/user-attachments/assets/06b7ea26-d321-4dd7-9a44-a371ef753b2a
+
+
 ## Getting Started
 
 ### Prerequisites
