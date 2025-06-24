@@ -1,45 +1,66 @@
 import dotenv from "dotenv";
-dotenv.config({ path: ".env.local" }); // Load API key for standalone script
+dotenv.config({ path: ".env.local" });
 
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
 
-// Get last N commit messages from git log
-function getRecentCommits(count = 10): string[] {
-  const raw = execSync(`git log -n ${count} --pretty=format:%s`, {
-    encoding: "utf-8",
-  });
-  return raw.trim().split("\n");
+// ---------- Configuration ----------
+const LAST_COMMIT_FILE = path.join(process.cwd(), ".last-commit");
+const CHANGELOG_DIR = path.join(process.cwd(), "changelogs");
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+
+// ---------- Git Helpers ----------
+function getLastProcessedCommit(): string {
+  if (fs.existsSync(LAST_COMMIT_FILE)) {
+    return fs.readFileSync(LAST_COMMIT_FILE, "utf8").trim();
+  }
+  // If no file exists, return the first commit in the repo
+  return execSync("git rev-list --max-parents=0 HEAD", { encoding: "utf8" }).trim();
 }
 
-// Fix markdown formatting: convert **Header** to ## Header
+function getNewCommitsSinceLast(): string[] {
+  const lastHash = getLastProcessedCommit();
+  const currentHash = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
+
+  if (lastHash === currentHash) {
+    console.log("🚫 No new commits since last changelog.");
+    return [];
+  }
+
+  const raw = execSync(`git log ${lastHash}..HEAD --pretty=format:%s`, { encoding: "utf8" });
+  return raw.trim().split("\n").filter(Boolean);
+}
+
+function updateLastProcessedCommit() {
+  const currentHash = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
+  fs.writeFileSync(LAST_COMMIT_FILE, currentHash);
+}
+
+// ---------- Markdown Formatter ----------
 function fixMarkdownHeadings(markdown: string): string {
   return markdown.replace(/^\*\*(.+?)\*\*$/gm, "## $1");
 }
 
-// Send commits to OpenRouter to get a changelog summary
+// ---------- AI Summarization ----------
 async function summarizeCommits(commits: string[]): Promise<string> {
-  const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
   if (!OPENROUTER_API_KEY) {
-    throw new Error("Missing OPENROUTER_API_KEY in environment variables");
+    throw new Error("❌ Missing OPENROUTER_API_KEY in .env.local");
   }
 
   const prompt = `
-You are writing a changelog for a developer-facing product like Stripe or Twilio.
+    You're writing a changelog for a developer-facing product like Stripe or Twilio.
 
-Given these commit messages, write a clean, user-friendly changelog.
+    Commit messages:
+    ${commits.map((msg) => `- ${msg}`).join("\n")}
 
-Instructions:
-- Group entries into sections like "New Features", "Improvements", "Fixes", etc.
-- Start each section with a bold title (e.g. **New Features**)
-- Use bullet points to describe each change clearly and concisely
-- Focus on what changed and why it matters to the end-user developer
-- Respond in markdown only
-- Do not return an empty response
-
-Commit messages:
-${commits.map((msg) => `- ${msg}`).join("\n")}
+    Instructions:
+    - Group entries into sections like "New Features", "Improvements", "Fixes", etc.
+    - Start each section with a bold title (e.g. **New Features**)
+    - Use bullet points to describe each change clearly and concisely
+    - Focus on what changed and why it matters to the end-user developer
+    - Respond in markdown only
+    - Do not return an empty response
 `;
 
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -47,7 +68,7 @@ ${commits.map((msg) => `- ${msg}`).join("\n")}
     headers: {
       Authorization: `Bearer ${OPENROUTER_API_KEY}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "http://localhost:3000/", // or your domain in prod
+      "HTTP-Referer": "http://localhost:3000/",
     },
     body: JSON.stringify({
       model: "openai/gpt-3.5-turbo",
@@ -57,36 +78,63 @@ ${commits.map((msg) => `- ${msg}`).join("\n")}
   });
 
   const json = await response.json();
-  const rawContent = json.choices?.[0]?.message?.content;
+  const content = json.choices?.[0]?.message?.content;
 
-  if (!rawContent) {
-    console.error("⚠️ Unexpected response from OpenRouter:");
-    console.dir(json, { depth: null });
+  if (!content) {
+    console.error("⚠️ No summary returned from OpenRouter:", JSON.stringify(json, null, 2));
     throw new Error("No summary returned from OpenRouter.");
   }
 
-  return fixMarkdownHeadings(rawContent.trim());
+  return fixMarkdownHeadings(content.trim());
 }
 
-// Save final markdown to changelogs/YYYY-MM-DD.md
+// ---------- Changelog Writer ----------
 function writeChangelog(content: string) {
-  const today = new Date().toISOString().split("T")[0];
-  const filePath = path.join(process.cwd(), "changelogs", `${today}.md`);
+  const now = new Date();
+  const today = now.toLocaleDateString("en-CA"); // YYYY-MM-DD local time
+  const filePath = path.join(CHANGELOG_DIR, `${today}.md`);
   const frontmatter = `---\ntitle: Update for ${today}\ndate: ${today}\n---\n\n`;
+
+  if (!fs.existsSync(CHANGELOG_DIR)) {
+    fs.mkdirSync(CHANGELOG_DIR);
+  }
+
+  if (fs.existsSync(filePath)) {
+    console.log(`⚠️ Changelog for ${today} already exists. Skipping.`);
+    return;
+  }
+
   fs.writeFileSync(filePath, frontmatter + content, "utf-8");
   console.log(`✅ Changelog written to ${filePath}`);
 }
 
-// Main script
+// ---------- Main Script ----------
 (async function run() {
   try {
-    const commits = getRecentCommits(10);
-    console.log("📋 Recent commits:\n", commits.join("\n"));
+    const commits = getNewCommitsSinceLast();
 
-    const summary = await summarizeCommits(commits);
-    console.log("\n🧠 AI-generated changelog:\n", summary);
+    const now = new Date();
+    const today = now.toLocaleDateString("en-CA"); // local date
+    const filePath = path.join(CHANGELOG_DIR, `${today}.md`);
 
-    writeChangelog(summary);
+    if (commits.length === 0) {
+      if (!fs.existsSync(filePath)) {
+        console.log("🟡 No new commits, but no changelog exists yet — creating one from HEAD.");
+        const fallback = execSync("git log -1 --pretty=format:%s", { encoding: "utf8" }).trim();
+        commits.push(fallback);
+      } else {
+        console.log("✅ No new commits and changelog already exists. Skipping generation.");
+        return;
+      }
+    }
+
+    console.log("📋 New commits:\n" + commits.join("\n"));
+
+    const markdown = await summarizeCommits(commits);
+    console.log("\n🧠 AI-generated changelog:\n", markdown);
+
+    writeChangelog(markdown);
+    updateLastProcessedCommit();
   } catch (err: any) {
     console.error("❌ Error generating changelog:", err.message);
   }
