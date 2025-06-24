@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
+import React from "react";
 
 interface Changelog {
   slug: string;
@@ -14,90 +15,49 @@ function parseMarkdown(content: string): React.ReactNode {
   const lines = content.split("\n");
   const elements: React.ReactNode[] = [];
 
-  let currentList: string[] = [];
-  let inList = false;
-
   lines.forEach((line, index) => {
-    const trimmedLine = line.trim();
+    const trimmed = line.trim();
 
-    if (trimmedLine.startsWith("## ")) {
-      if (inList) {
-        elements.push(
-          <ul
-            key={`list-${index}`}
-            className="list-disc pl-6 mb-4 space-y-2 text-[var(--foreground)]"
-          >
-            {currentList.map((item, i) => (
-              <li key={i}>{item}</li>
-            ))}
-          </ul>
-        );
-        currentList = [];
-        inList = false;
-      }
+    if (trimmed.startsWith("## ")) return; // Skip top-level heading (we use title instead)
+
+    if (trimmed.startsWith("### ")) {
       elements.push(
-        <h2
+        <h3
           key={index}
-          className="text-xl font-semibold text-[var(--brand-green)] mt-6 mb-4 tracking-tight uppercase"
+          className="text-xl font-semibold text-[var(--foreground)] mt-4 mb-2"
         >
-          {trimmedLine.substring(3)}
-        </h2>
+          {trimmed.replace(/^### /, "")}
+        </h3>
       );
-    } else if (trimmedLine.startsWith("- ")) {
-      if (!inList) {
-        inList = true;
-      }
-      currentList.push(trimmedLine.substring(2));
-    } else if (trimmedLine === "") {
-      if (inList) {
-        elements.push(
-          <ul
-            key={`list-${index}`}
-            className="list-disc pl-6 mb-4 space-y-2 text-[var(--foreground)]"
-          >
-            {currentList.map((item, i) => (
-              <li key={i}>{item}</li>
-            ))}
-          </ul>
-        );
-        currentList = [];
-        inList = false;
-      }
-    } else if (trimmedLine) {
-      if (inList) {
-        elements.push(
-          <ul
-            key={`list-${index}`}
-            className="list-disc pl-6 mb-4 space-y-2 text-[var(--foreground)]"
-          >
-            {currentList.map((item, i) => (
-              <li key={i}>{item}</li>
-            ))}
-          </ul>
-        );
-        currentList = [];
-        inList = false;
-      }
+    } else if (trimmed.startsWith("**Tags:**")) {
+      const tagText = trimmed.replace("**Tags:**", "").trim();
+      if (!tagText || /^(n\/a|null|none|\[no specific tags\])$/i.test(tagText)) return;
+
+      const tags = tagText.split(",").map((tag) => tag.trim());
+
       elements.push(
-        <p key={index} className="text-[var(--foreground)] mb-4">
-          {trimmedLine}
+        <div key={index} className="flex flex-wrap gap-2 mb-4">
+          {tags.map((tag, i) => (
+            <span
+              key={i}
+              className="bg-[var(--brand-green)] text-white text-xs font-medium px-2 py-1 rounded-full uppercase tracking-wider"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      );
+    } else if (trimmed) {
+      elements.push(
+        <p
+          key={index}
+          className="text-base text-[var(--foreground)] mb-4 leading-relaxed"
+        >
+          {trimmed}
         </p>
       );
     }
   });
-
-  if (inList) {
-    elements.push(
-      <ul
-        key="last-list"
-        className="list-disc pl-6 mb-4 space-y-2 text-[var(--foreground)]"
-      >
-        {currentList.map((item, i) => (
-          <li key={i}>{item}</li>
-        ))}
-      </ul>
-    );
-  }
 
   return elements;
 }
@@ -155,12 +115,13 @@ export default function Home() {
             </div>
           </article>
         ))}
+
         {changelogs.length === 0 && (
           <div className="text-center py-16 bg-[var(--card-background)] rounded-xl shadow-md border border-[var(--card-border)]">
             <h2 className="text-3xl font-bold text-[var(--brand-green)]">
               No changelogs yet!
             </h2>
-            <p className="text-lg mt-4 ]">
+            <p className="text-lg mt-4 text-[var(--foreground)]">
               Run the generator to see your first product update here.
             </p>
           </div>
